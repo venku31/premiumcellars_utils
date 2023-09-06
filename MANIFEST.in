@@ -1,0 +1,18 @@
+include MANIFEST.in
+include requirements.txt
+include *.json
+include *.md
+include *.py
+include *.txt
+recursive-include premiumcellars_utils *.css
+recursive-include premiumcellars_utils *.csv
+recursive-include premiumcellars_utils *.html
+recursive-include premiumcellars_utils *.ico
+recursive-include premiumcellars_utils *.js
+recursive-include premiumcellars_utils *.json
+recursive-include premiumcellars_utils *.md
+recursive-include premiumcellars_utils *.png
+recursive-include premiumcellars_utils *.py
+recursive-include premiumcellars_utils *.svg
+recursive-include premiumcellars_utils *.txt
+recursive-exclude premiumcellars_utils *.pyc
