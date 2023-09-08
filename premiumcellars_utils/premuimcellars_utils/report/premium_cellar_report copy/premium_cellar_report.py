@@ -13,8 +13,8 @@ from frappe.utils import add_days, cint, date_diff, flt, getdate
 from frappe.utils.nestedset import get_descendants_of
 
 import erpnext
-# from erpnext.stock.doctype.inventory_dimension.inventory_dimension import get_inventory_dimensions
-# from erpnext.stock.doctype.warehouse.warehouse import apply_warehouse_filter
+from erpnext.stock.doctype.inventory_dimension.inventory_dimension import get_inventory_dimensions
+from erpnext.stock.doctype.warehouse.warehouse import apply_warehouse_filter
 from erpnext.stock.report.stock_ageing.stock_ageing import FIFOSlots, get_average_age
 from erpnext.stock.utils import add_additional_uom_columns
 
@@ -60,7 +60,7 @@ class StockBalanceReport(object):
 	def run(self):
 		self.float_precision = cint(frappe.db.get_default("float_precision")) or 3
 
-		# self.inventory_dimensions = self.get_inventory_dimension_fields()
+		self.inventory_dimensions = self.get_inventory_dimension_fields()
 		self.prepare_opening_data_from_closing_balance()
 		self.prepare_stock_ledger_entries()
 		self.prepare_new_data()
@@ -158,16 +158,16 @@ class StockBalanceReport(object):
 			if group_by_key not in item_warehouse_map:
 				self.initialize_data(item_warehouse_map, group_by_key, entry)
 
-		# item_warehouse_map = filter_items_with_no_transactions(
-		# 	item_warehouse_map, self.float_precision, self.inventory_dimensions
-		# )
+		item_warehouse_map = filter_items_with_no_transactions(
+			item_warehouse_map, self.float_precision, self.inventory_dimensions
+		)
 
 		return item_warehouse_map
 
 	def prepare_item_warehouse_map(self, item_warehouse_map, entry, group_by_key):
 		qty_dict = item_warehouse_map[group_by_key]
-		# for field in self.inventory_dimensions:
-		# 	qty_dict[field] = entry.get(field)
+		for field in self.inventory_dimensions:
+			qty_dict[field] = entry.get(field)
 
 		if entry.voucher_type == "Stock Reconciliation" and (not entry.batch_no or entry.serial_no):
 			qty_diff = flt(entry.qty_after_transaction) - flt(qty_dict.bal_qty)
@@ -224,9 +224,9 @@ class StockBalanceReport(object):
 	def get_group_by_key(self, row) -> tuple:
 		group_by_key = [row.company, row.item_code, row.warehouse]
 
-		# for fieldname in self.inventory_dimensions:
-		# 	if self.filters.get(fieldname):
-		# 		group_by_key.append(row.get(fieldname))
+		for fieldname in self.inventory_dimensions:
+			if self.filters.get(fieldname):
+				group_by_key.append(row.get(fieldname))
 
 		return tuple(group_by_key)
 
@@ -288,7 +288,7 @@ class StockBalanceReport(object):
 			.orderby(sle.actual_qty)
 		)
 
-		# query = self.apply_inventory_dimensions_filters(query, sle)
+		query = self.apply_inventory_dimensions_filters(query, sle)
 		query = self.apply_warehouse_filters(query, sle)
 		query = self.apply_items_filters(query, item_table)
 		query = self.apply_date_filters(query, sle)
@@ -298,15 +298,15 @@ class StockBalanceReport(object):
 
 		self.sle_entries = query.run(as_dict=True)
 
-	# def apply_inventory_dimensions_filters(self, query, sle) -> str:
-	# 	inventory_dimension_fields = self.get_inventory_dimension_fields()
-	# 	if inventory_dimension_fields:
-	# 		for fieldname in inventory_dimension_fields:
-	# 			query = query.select(fieldname)
-	# 			if self.filters.get(fieldname):
-	# 				query = query.where(sle[fieldname].isin(self.filters.get(fieldname)))
+	def apply_inventory_dimensions_filters(self, query, sle) -> str:
+		inventory_dimension_fields = self.get_inventory_dimension_fields()
+		if inventory_dimension_fields:
+			for fieldname in inventory_dimension_fields:
+				query = query.select(fieldname)
+				if self.filters.get(fieldname):
+					query = query.where(sle[fieldname].isin(self.filters.get(fieldname)))
 
-	# 	return query
+		return query
 
 	def apply_warehouse_filters(self, query, sle) -> str:
 		warehouse_table = frappe.qb.DocType("Warehouse")
@@ -351,35 +351,35 @@ class StockBalanceReport(object):
 				"fieldname": "item_code",
 				"fieldtype": "Link",
 				"options": "Item",
-				"width": 140,
+				"width": 100,
 			},
-			{"label": _("Item Name"), "fieldname": "item_name", "width": 180},
+			{"label": _("Item Name"), "fieldname": "item_name", "width": 150},
 			{
 				"label": _("Item Group"),
 				"fieldname": "item_group",
 				"fieldtype": "Link",
 				"options": "Item Group",
-				"width": 140,
+				"width": 100,
 			},
 			{
 				"label": _("Warehouse"),
 				"fieldname": "warehouse",
 				"fieldtype": "Link",
 				"options": "Warehouse",
-				"width": 120,
+				"width": 100,
 			},
 		]
 
-		# for dimension in get_inventory_dimensions():
-		# 	columns.append(
-		# 		{
-		# 			"label": _(dimension.doctype),
-		# 			"fieldname": dimension.fieldname,
-		# 			"fieldtype": "Link",
-		# 			"options": dimension.doctype,
-		# 			"width": 110,
-		# 		}
-		# 	)
+		for dimension in get_inventory_dimensions():
+			columns.append(
+				{
+					"label": _(dimension.doctype),
+					"fieldname": dimension.fieldname,
+					"fieldtype": "Link",
+					"options": dimension.doctype,
+					"width": 110,
+				}
+			)
 
 		columns.extend(
 			[
@@ -394,14 +394,14 @@ class StockBalanceReport(object):
 					"label": _("Balance Qty"),
 					"fieldname": "bal_qty",
 					"fieldtype": "Float",
-					"width": 120,
+					"width": 100,
 					"convertible": "qty",
 				},
 				{
 					"label": _("Last purchase rate"),
 					"fieldname": "purchase_rate",
 					"fieldtype": "Float",
-					"width": 160,
+					"width": 80,
 					"convertible": "qty",
 				}
 			]
@@ -505,9 +505,9 @@ class StockBalanceReport(object):
 
 		return opening_vouchers
 
-	# @staticmethod
-	# def get_inventory_dimension_fields():
-	# 	return [dimension.fieldname for dimension in get_inventory_dimensions()]
+	@staticmethod
+	def get_inventory_dimension_fields():
+		return [dimension.fieldname for dimension in get_inventory_dimensions()]
 
 	@staticmethod
 	def get_opening_fifo_queue(report_data):
